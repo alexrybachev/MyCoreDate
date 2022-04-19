@@ -9,6 +9,11 @@ import UIKit
 
 class TaskViewController: UIViewController {
     
+    // MARK: - Properties For Core Data
+    private let viewContext = StorageManager.shared.persistentContainer.viewContext
+    
+    var delegate: TaskViewControllerDelegate!
+    
     // MARK: - Private Properties
     private lazy var taskTextFiled: UITextField = {
         let textField = UITextField()
@@ -22,7 +27,7 @@ class TaskViewController: UIViewController {
             with: "Save Task",
             and: UIColor(red: 21/255, green: 101/255, blue: 192/255, alpha: 194/255),
             action: UIAction { _ in
-                self.dismiss(animated: true)
+                self.save()
             }
         )
     }()
@@ -87,5 +92,22 @@ class TaskViewController: UIViewController {
         buttonConfiguration.baseBackgroundColor = color
         
         return UIButton(configuration: buttonConfiguration, primaryAction: action)
+    }
+}
+
+extension TaskViewController {
+    private func save() {
+        let task = CoreTask(context: viewContext)
+        task.title = taskTextFiled.text
+        
+        if  viewContext.hasChanges {
+            do {
+                try viewContext.save()
+            } catch {
+                print(error.localizedDescription)
+            }
+        }
+        delegate.reloadData()
+        dismiss(animated: true)
     }
 }
