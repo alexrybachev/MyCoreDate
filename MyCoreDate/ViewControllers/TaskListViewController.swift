@@ -53,15 +53,11 @@ class TaskListViewController: UITableViewController {
     }
     
     private func fetchData() {
-        let fetchRequest = CoreTask.fetchRequest()
-        do {
-            try taskList = context.fetch(fetchRequest)
-        } catch {
-            print(error.localizedDescription)
-        }
+        taskList = StorageManager.shared.fetchData()
     }
 }
 
+// MARK: - Setup TableView
 extension TaskListViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         taskList.count
@@ -70,55 +66,50 @@ extension TaskListViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: cellID, for: indexPath)
         let task = taskList[indexPath.row]
+        
         var content = cell.defaultContentConfiguration()
         content.text = task.title
         cell.contentConfiguration = content
+        
         return cell
     }
     
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == UITableViewCell.EditingStyle.delete {
             let task = taskList[indexPath.row]
-            context.delete(task)
+            StorageManager.shared.deleteTask(task)
             
             taskList.remove(at: indexPath.row)
             tableView.deleteRows(at: [indexPath], with: .automatic)
-            
-            if context.hasChanges {
-                do {
-                    try context.save()
-                } catch {
-                    print(error.localizedDescription)
-                }
-            }
         }
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let task = taskList[indexPath.row]
-        showAlert(with: "Update Task", and: "What do you want to do?", for: task)
+        showAlert(with: "Update Task", and: "What do you want to do?", for: indexPath.row)
     }
 }
 
+// MARK: - AlertController
+
 extension TaskListViewController {
-    private func showAlert(with title: String, and message: String, for someTask: CoreTask? = nil) {
+    private func showAlert(with title: String, and message: String, for index: Int? = nil) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
-            if someTask == nil {
-                guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
+            guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
+            if index == nil {
                 self.save(task)
             } else {
-                guard let task = someTask else { return }
-                self.update(task)
+                self.update(task, for: index)
             }
         }
         let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
+        
         alert.addAction(saveAction)
         alert.addAction(cancelAction)
         alert.addTextField { textField in
             textField.placeholder = "New Task"
-            textField.text = someTask?.title
+            textField.text = self.taskList[index ?? 0].title
         }
         present(alert, animated: true)
     }
@@ -131,25 +122,16 @@ extension TaskListViewController {
         let cellIndex = IndexPath(row: taskList.count - 1, section: 0)
         tableView.insertRows(at: [cellIndex], with: .automatic)
         
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch {
-                print(error.localizedDescription)
-            }
-        }
+        StorageManager.shared.saveTask(task)
         dismiss(animated: true)
     }
     
-    private func update(_ task: CoreTask) {
-        context.refresh(task, mergeChanges: true)
+    private func update(_ taskNewName: String, for index: Int?) {
+        guard let taskIndex = index else { return }
+        taskList[taskIndex].title = taskNewName
+        tableView.reloadData()
         
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch {
-                print(error.localizedDescription)
-            }
-        }
+        StorageManager.shared.saveContext()
+        dismiss(animated: true)
     }
 }

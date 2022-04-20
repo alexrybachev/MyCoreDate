@@ -5,7 +5,7 @@
 //  Created by Aleksandr Rybachev on 19.04.2022.
 //
 
-import Foundation
+
 import CoreData
 
 class StorageManager {
@@ -30,7 +30,8 @@ class StorageManager {
     }()
 
     // MARK: - Core Data Saving support
-    func saveContext () {
+    
+    func saveContext() {
         let context = persistentContainer.viewContext
         if context.hasChanges {
             do {
@@ -42,4 +43,41 @@ class StorageManager {
         }
     }
     
+    // MARK: - Methods for VC
+    
+    func fetchData() -> [CoreTask] {
+        let fetchRequest = CoreTask.fetchRequest()
+        do {
+            let taskList = try context.fetch(fetchRequest)
+            return taskList
+        } catch {
+            print(error.localizedDescription)
+        }
+        
+        return []
+    }
+    
+    func saveTask(_ task: CoreTask) {
+        context.insert(task)
+        
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch {
+                print(error.localizedDescription)
+            }
+        }
+    }
+    
+    func deleteTask(_ task: CoreTask) {
+        context.delete(task)
+        
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch {
+                print(error.localizedDescription)
+            }
+        }
+    }
 }
