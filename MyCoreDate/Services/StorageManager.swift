@@ -12,10 +12,8 @@ class StorageManager {
     
     static let shared = StorageManager()
     
-    private init() {}
-    
     // MARK: - Core Data stack
-    var persistentContainer: NSPersistentContainer = {
+    private let persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "MyCoreDate")
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {
@@ -25,58 +23,52 @@ class StorageManager {
         return container
     }()
     
-    lazy var context: NSManagedObjectContext = {
-        return persistentContainer.viewContext
-    }()
+    private let context: NSManagedObjectContext
+    
+    private init() {
+        context = persistentContainer.viewContext
+    }
 
+    // MARK: - CRUD
+    // Create, Read, Update, Delete
+    
+    func fetchData(completion: (Result<[CoreTask], Error>) -> Void) {
+        let fetchRequest = CoreTask.fetchRequest()
+        
+        do {
+            let tasks = try self.context.fetch(fetchRequest)
+            completion(.success(tasks))
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
+    func create(_ taskName: String, completion: (CoreTask) -> Void) {
+        let task = CoreTask(context: context)
+        task.title = taskName
+        completion(task)
+        saveContext()
+    }
+    
+    func update(_ task: CoreTask, newName: String) {
+        task.title = newName
+        saveContext()
+    }
+    
+    func delete(_ task: CoreTask) {
+        context.delete(task)
+        saveContext()
+    }
+    
     // MARK: - Core Data Saving support
     
     func saveContext() {
-        let context = persistentContainer.viewContext
         if context.hasChanges {
             do {
                 try context.save()
             } catch {
                 let nserror = error as NSError
                 fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
-            }
-        }
-    }
-    
-    // MARK: - Methods for VC
-    
-    func fetchData() -> [CoreTask] {
-        let fetchRequest = CoreTask.fetchRequest()
-        do {
-            let taskList = try context.fetch(fetchRequest)
-            return taskList
-        } catch {
-            print(error.localizedDescription)
-        }
-        
-        return []
-    }
-    
-    func saveTask(_ task: CoreTask) {
-        context.insert(task)
-        
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch {
-                print(error.localizedDescription)
-            }
-        }
-    }
-    
-    func deleteTask(_ task: CoreTask) {
-        context.delete(task)
-        
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch {
-                print(error.localizedDescription)
             }
         }
     }
